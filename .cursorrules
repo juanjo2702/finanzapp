@@ -1,0 +1,12 @@
+# Finanzapp - Cursor & AI Assistant Rules
+
+You are working on Finanzapp, an enterprise personal finance platform (Turborepo monorepo: NestJS 10, Next.js 15, React Native Expo, Prisma, PostgreSQL 16).
+
+## Fundamental Principles:
+1. Always import shared contracts, enums, and models from `@finanzapp/shared-types`. Never re-declare duplicate interfaces.
+2. In the backend (`apps/api`), all financial balance updates must execute inside a `prisma.$transaction` block for ACID consistency.
+3. Keep strict TypeScript mode enabled with 0 errors. Avoid `any`.
+4. The application supports dual Dark/Light mode. Dark mode is default. Always ensure clear visual contrast for both themes.
+5. All new functions and public methods must have JSDoc/TSDoc explanatory comments.
+6. When updating shared types in `packages/shared-types/src/`, recompile with `npm run build --workspace=@finanzapp/shared-types`.
+7. Refer to `docs/ARCHITECTURE.md`, `docs/BANKING_INTEGRATIONS.md`, and `docs/CODING_STANDARDS.md` for in-depth design specifications.
