@@ -1,0 +1,235 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Currency {
+  BOB
+  USD
+  EUR
+  USDT
+  BRL
+  ARS
+  CLP
+  PEN
+}
+
+enum AccountType {
+  CHECKING
+  SAVINGS
+  CASH
+  CREDIT_CARD
+  DIGITAL_WALLET
+  CRYPTO
+  INVESTMENT
+}
+
+enum TransactionType {
+  EXPENSE
+  INCOME
+  TRANSFER
+}
+
+enum CategoryClassification {
+  NEEDS
+  WANTS
+  SAVINGS_DEBT
+}
+
+enum TransactionSource {
+  MANUAL
+  SMS_PARSER
+  PUSH_NOTIFICATION
+  BANK_SYNC
+  RECEIPT_OCR
+  CSV_IMPORT
+}
+
+enum BudgetPeriod {
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum BankProvider {
+  BCP_BOLIVIA
+  BNB
+  BANCO_UNION
+  BANCO_MERCANTIL_SANTA_CRUZ
+  BANCO_BISA
+  BANCO_SOL
+  BANCO_ECONOMICO
+  BANCO_GANADERO
+  BELVO
+  PROMETEO
+  PLAID
+  TELLER
+  GOCARDLESS
+  MANUAL
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  passwordHash String
+  fullName     String
+  baseCurrency Currency     @default(BOB)
+  avatarUrl    String?
+  accounts     Account[]
+  categories   Category[]
+  transactions Transaction[]
+  budgets      Budget[]
+  savingsGoals SavingsGoal[]
+  connections  BankConnection[]
+  auditLogs    AuditLog[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@map("users")
+}
+
+model Account {
+  id                 String        @id @default(uuid())
+  userId             String
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name               String
+  type               AccountType   @default(CHECKING)
+  currency           Currency      @default(BOB)
+  balance            Float         @default(0)
+  initialBalance     Float         @default(0)
+  color              String?       @default("#2563eb")
+  icon               String?       @default("wallet")
+  institutionName    String?       // "Banco Mercantil", "BNB", "BCP", "Efectivo"
+  accountNumberMask  String?       // "****5678"
+  isArchived         Boolean       @default(false)
+  transactions       Transaction[] @relation("AccountTransactions")
+  transfersReceived  Transaction[] @relation("DestinationAccountTransfers")
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Category {
+  id             String                 @id @default(uuid())
+  userId         String?                // null if system default
+  user           User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  icon           String                 @default("tag")
+  color          String                 @default("#64748b")
+  classification CategoryClassification @default(NEEDS)
+  isSystem       Boolean                @default(false)
+  parentId       String?
+  parent         Category?              @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children       Category[]             @relation("CategoryHierarchy")
+  transactions   Transaction[]
+  budgets        Budget[]
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@index([userId])
+  @@map("categories")
+}
+
+model Transaction {
+  id                   String            @id @default(uuid())
+  userId               String
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId            String
+  account              Account           @relation("AccountTransactions", fields: [accountId], references: [id], onDelete: Cascade)
+  categoryId           String?
+  category             Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  destinationAccountId String?
+  destinationAccount   Account?          @relation("DestinationAccountTransfers", fields: [destinationAccountId], references: [id], onDelete: SetNull)
+  amount               Float
+  currency             Currency          @default(BOB)
+  exchangeRate         Float             @default(1.0)
+  baseAmount           Float             // amount in user's baseCurrency
+  type                 TransactionType   @default(EXPENSE)
+  merchantName         String?
+  notes                String?
+  transactionDate      DateTime          @default(now())
+  source               TransactionSource @default(MANUAL)
+  isRecurring          Boolean           @default(false)
+  rawPayload           String?           // Original SMS, Push payload or OpenBanking JSON
+  tags                 String[]          @default([])
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  @@index([userId, transactionDate])
+  @@index([accountId])
+  @@index([categoryId])
+  @@map("transactions")
+}
+
+model Budget {
+  id          String       @id @default(uuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId  String
+  category    Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  limitAmount Float
+  period      BudgetPeriod @default(MONTHLY)
+  startDate   DateTime
+  endDate     DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([userId])
+  @@map("budgets")
+}
+
+model SavingsGoal {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  targetAmount  Float
+  currentAmount Float     @default(0)
+  currency      Currency  @default(BOB)
+  deadline      DateTime?
+  color         String?   @default("#10b981")
+  icon          String?   @default("piggy-bank")
+  isCompleted   Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("savings_goals")
+}
+
+model BankConnection {
+  id                    String       @id @default(uuid())
+  userId                String
+  user                  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institutionName       String
+  provider              BankProvider @default(MANUAL)
+  status                String       @default("ACTIVE") // ACTIVE, DISCONNECTED, ERROR
+  accessTokenEncrypted  String?
+  lastSyncedAt          DateTime?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  @@index([userId])
+  @@map("bank_connections")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String
+  entity    String
+  entityId  String?
+  payload   Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("audit_logs")
+}

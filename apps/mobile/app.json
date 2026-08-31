@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Finanzapp",
+    "slug": "finanzapp-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "finanzapp",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#020617"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.finanzapp.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#020617"
+      },
+      "package": "com.finanzapp.mobile",
+      "permissions": [
+        "RECEIVE_SMS",
+        "READ_SMS",
+        "BIND_NOTIFICATION_LISTENER_SERVICE",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}
